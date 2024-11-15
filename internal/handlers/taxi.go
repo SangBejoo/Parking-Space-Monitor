@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-
 // TaxiHandler handles HTTP requests for Taxi operations.
 type TaxiHandler struct {
 	Repo *repository.TaxiRepository
@@ -22,25 +21,41 @@ type TaxiHandler struct {
 
 // CreateTaxiLocation handles the creation of a new taxi location.
 func (th *TaxiHandler) CreateTaxiLocation(w http.ResponseWriter, r *http.Request) {
-    var location models.TaxiLocation
-    if err := json.NewDecoder(r.Body).Decode(&location); err != nil {
+	var location models.TaxiLocation
+	if err := json.NewDecoder(r.Body).Decode(&location); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if err := th.Repo.CreateTaxi(location); err != nil {
+		http.Error(w, "Failed to create taxi location", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"taxi_id":   location.TaxiID,
+		"longitude": location.Longitude,
+		"latitude":  location.Latitude,
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (th *TaxiHandler) CreateMultipleTaxiLocations(w http.ResponseWriter, r *http.Request) {
+    var locations []models.TaxiLocation
+    if err := json.NewDecoder(r.Body).Decode(&locations); err != nil {
         http.Error(w, "Invalid request payload", http.StatusBadRequest)
         return
     }
 
-    if err := th.Repo.CreateTaxi(location); err != nil {
-        http.Error(w, "Failed to create taxi location", http.StatusInternalServerError)
+    if err := th.Repo.CreateMultipleTaxis(locations); err != nil {
+        http.Error(w, "Failed to create taxi locations", http.StatusInternalServerError)
         return
     }
 
-    response := map[string]interface{}{
-		"taxi_id":   location.TaxiID,
-        "longitude": location.Longitude,
-        "latitude":  location.Latitude,
-    }
-
     w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(response)
+    json.NewEncoder(w).Encode(locations)
 }
 
 // GetAllTaxiLocations retrieves all taxi locations.
