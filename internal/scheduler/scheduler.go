@@ -3,9 +3,9 @@ package scheduler
 
 import (
     "database/sql"
-    "sync"
     "log"
-    "encoding/json"
+    "sync"
+    "strconv"
 
     "github.com/SangBejoo/parking-space-monitor/internal/repository"
 )
@@ -16,30 +16,28 @@ type Scheduler struct {
     Mutex sync.Mutex
 }
 
-// isPointInPolygon checks if a point is inside a polygon.
-// In scheduler.go
-
-// Point represents a geographic coordinate
+// Point represents a geographic coordinate.
 type Point struct {
     X float64 // longitude
     Y float64 // latitude
 }
 
-// isPointInPolygon checks if a point lies within a polygon using ray-casting algorithm
+// isPointInPolygon checks if a point lies within a polygon using the ray-casting algorithm.
 func isPointInPolygon(longitude, latitude float64, polygon []Point) bool {
-    point := Point{X: longitude, Y: latitude}
-    inside := false
+    intersects := false
     j := len(polygon) - 1
-
     for i := 0; i < len(polygon); i++ {
-        if ((polygon[i].Y > point.Y) != (polygon[j].Y > point.Y)) &&
-            (point.X < (polygon[j].X-polygon[i].X)*(point.Y-polygon[i].Y)/(polygon[j].Y-polygon[i].Y)+polygon[i].X) {
-            inside = !inside
+        xi, yi := polygon[i].X, polygon[i].Y
+        xj, yj := polygon[j].X, polygon[j].Y
+
+        intersect := ((yi > latitude) != (yj > latitude)) &&
+            (longitude < (xj-xi)*(latitude-yi)/(yj-yi)+xi)
+        if intersect {
+            intersects = !intersects
         }
         j = i
     }
-
-    return inside
+    return intersects
 }
 
 // Repository aggregates all repository dependencies.
@@ -61,10 +59,8 @@ func NewScheduler(repo *Repository) *Scheduler {
 func (s *Scheduler) MapTaxiLocations() {
     s.Mutex.Lock()
     defer s.Mutex.Unlock()
-
     log.Println("Starting taxi location mapping...")
 
-    // Get all taxis and places
     taxis, err := s.Repo.TaxiRepo.GetAllTaxis()
     if err != nil {
         log.Printf("Error getting taxis: %v", err)
@@ -78,25 +74,35 @@ func (s *Scheduler) MapTaxiLocations() {
     }
 
     for _, taxi := range taxis {
-        log.Printf("Processing taxi %s at coordinates (%f, %f)", 
+        log.Printf("Processing taxi %s at coordinates (%f, %f)",
             taxi.TaxiID, taxi.Longitude, taxi.Latitude)
-        
+
         matched := false
         for _, place := range places {
-            // Log the polygon data being checked
-            log.Printf("Checking against place %s with polygon: %v", 
+            log.Printf("Checking against place %s with polygon: %v",
                 place.PlaceName, place.Polygon)
-            
-            // Unmarshal the polygon
+
+            // Convert GeoJSONPolygon to []Point
             var polygon []Point
-            polygonBytes, err := json.Marshal(place.Polygon)
-            if err != nil {
-                log.Printf("Error marshaling polygon for place %s: %v", place.PlaceName, err)
-                continue
-            }
-            err = json.Unmarshal(polygonBytes, &polygon)
-            if err != nil {
-                log.Printf("Error unmarshaling polygon for place %s: %v", place.PlaceName, err)
+            if len(place.Polygon.Coordinates) > 0 {
+                for _, coord := range place.Polygon.Coordinates[0] {
+                    if len(coord) >= 2 {
+                        lonStr := coord[0]
+                        latStr := coord[1]
+                        lon, err1 := lonStr.Float64()
+                        lat, err2 := latStr.Float64()
+                        if err1 != nil || err2 != nil {
+                            log.Printf("Error converting coordinate to float64 for place %s", place.PlaceName)
+                            continue
+                        }
+                        polygon = append(polygon, Point{
+                            X: lon,
+                            Y: lat,
+                        })
+                    }
+                }
+            } else {
+                log.Printf("No coordinates found for place %s", place.PlaceName)
                 continue
             }
 
@@ -104,35 +110,26 @@ func (s *Scheduler) MapTaxiLocations() {
             if isPointInPolygon(taxi.Longitude, taxi.Latitude, polygon) {
                 matched = true
                 log.Printf("Taxi %s is within %s", taxi.TaxiID, place.PlaceName)
-                
-                // Insert or update mapping
-                err := s.Repo.MappingRepo.InsertMapping(taxi.TaxiID, place.PlaceID)
+
+                // Update taxi duration
+                err := s.Repo.MappingRepo.UpdateTaxiDuration(taxi.TaxiID, strconv.Itoa(place.PlaceID))
                 if err != nil {
-                    log.Printf("Error inserting mapping: %v", err)
-                    continue
+                    log.Printf("Error updating taxi duration: %v", err)
                 }
 
-                // Update counter
-                count, err := s.Repo.MappingRepo.GetCounter(taxi.TaxiID, place.PlaceID)
-                if err != nil && err != sql.ErrNoRows {
-                    log.Printf("Error getting counter: %v", err)
-                    continue
-                }
-
-                if count == 0 {
-                    err = s.Repo.MappingRepo.InsertCounter(taxi.TaxiID, place.PlaceID)
-                } else {
-                    err = s.Repo.MappingRepo.UpdateCounter(taxi.TaxiID, place.PlaceID)
-                }
-                if err != nil {
-                    log.Printf("Error updating counter: %v", err)
-                }
                 break
             }
         }
+
         if !matched {
             log.Printf("Taxi %s does not match any place", taxi.TaxiID)
+            // Reset duration if taxi moved out
+            err := s.Repo.MappingRepo.ResetTaxiDuration(taxi.TaxiID)
+            if err != nil {
+                log.Printf("Error resetting taxi duration: %v", err)
+            }
         }
     }
+
     log.Println("Mapping process completed")
 }

@@ -4,6 +4,8 @@ package repository
 import (
     "database/sql"
     "fmt"
+    "log"
+    "encoding/json"
 
     "github.com/SangBejoo/parking-space-monitor/internal/models"
 )
@@ -13,7 +15,10 @@ type PlaceRepository struct {
     DB *sql.DB
 }
 
-// CreatePlace inserts a new place into the database.
+// internal/repository/place_repository.go
+
+// internal/repository/place_repository.go
+
 func (pr *PlaceRepository) CreatePlace(place models.Place) (int, error) {
     var placeID int
     err := pr.DB.QueryRow(`INSERT INTO places (place_name, polygon) 
@@ -25,26 +30,66 @@ func (pr *PlaceRepository) CreatePlace(place models.Place) (int, error) {
     return placeID, nil
 }
 
-// GetAllPlaces retrieves all places from the database.
 func (pr *PlaceRepository) GetAllPlaces() ([]models.Place, error) {
-    rows, err := pr.DB.Query("SELECT place_id, place_name, polygon FROM places")
+    query := `
+        SELECT 
+            place_id, 
+            place_name, 
+            CASE 
+                WHEN polygon IS NULL THEN '{"type":"Polygon","coordinates":[]}'::jsonb
+                WHEN jsonb_typeof(polygon) = 'array' THEN 
+                    jsonb_build_object(
+                        'type', 'Polygon',
+                        'coordinates', jsonb_build_array(polygon)
+                    )
+                ELSE polygon
+            END as polygon
+        FROM places
+    `
+    
+    rows, err := pr.DB.Query(query)
     if err != nil {
-        return nil, err
+        log.Printf("Database query error: %v", err)
+        return nil, fmt.Errorf("database query error: %v", err)
     }
     defer rows.Close()
 
     var places []models.Place
     for rows.Next() {
         var place models.Place
-        if err := rows.Scan(&place.PlaceID, &place.PlaceName, &place.Polygon); err != nil {
-            return nil, err
+        var polygonBytes []byte
+        
+        if err := rows.Scan(&place.PlaceID, &place.PlaceName, &polygonBytes); err != nil {
+            log.Printf("Row scan error: %v", err)
+            return nil, fmt.Errorf("row scan error: %v", err)
         }
+
+        log.Printf("Raw polygon data: %s", string(polygonBytes))
+
+        if err := json.Unmarshal(polygonBytes, &place.Polygon); err != nil {
+            // Try to convert array format to GeoJSON
+            var coordinates [][][]json.Number
+            if err := json.Unmarshal(polygonBytes, &coordinates); err == nil {
+                place.Polygon = models.GeoJSONPolygon{
+                    Type:        "Polygon",
+                    Coordinates: coordinates,
+                }
+            } else {
+                log.Printf("Polygon unmarshal error: %v, data: %s", err, string(polygonBytes))
+                return nil, fmt.Errorf("polygon unmarshal error: %v", err)
+            }
+        }
+        
         places = append(places, place)
+    }
+
+    if err = rows.Err(); err != nil {
+        log.Printf("Row iteration error: %v", err)
+        return nil, fmt.Errorf("row iteration error: %v", err)
     }
 
     return places, nil
 }
-
 // GetPlaceByID retrieves a place by its ID.
 func (pr *PlaceRepository) GetPlaceByID(placeID int) (*models.Place, error) {
     var place models.Place

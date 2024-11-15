@@ -4,6 +4,7 @@ package repository
 import (
     "database/sql"
     "fmt"
+    "log"
 )
 // MappingRepository handles operations related to mappings and counters.
 type MappingRepository struct {
@@ -69,4 +70,45 @@ func (mr *MappingRepository) GetAllMappings() ([]map[string]interface{}, error) 
     }
 
     return mappings, nil
+}
+
+// UpdateTaxiDuration updates the duration of a taxi in a specific place.
+
+func (r *MappingRepository) UpdateTaxiDuration(taxiID, placeID string) error {
+
+    query := "UPDATE taxi_durations SET duration = duration + 1 WHERE taxi_id = ? AND place_id = ?"
+
+    _, err := r.DB.Exec(query, taxiID, placeID)
+
+    if err != nil {
+
+        log.Printf("Error updating taxi duration: %v", err)
+
+        return err
+
+    }
+
+    return nil
+
+}
+
+
+// ResetTaxiDuration resets the duration of a taxi in a place.
+
+func (repo *MappingRepository) ResetTaxiDuration(taxiID string) error {
+
+    query := "UPDATE taxi_mapping SET duration = 0 WHERE taxi_id = ?"
+
+    _, err := repo.DB.Exec(query, taxiID)
+
+    if err != nil {
+
+        log.Printf("Error resetting taxi duration for taxi %s: %v", taxiID, err)
+
+        return err
+
+    }
+
+    return nil
+
 }

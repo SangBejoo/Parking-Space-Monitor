@@ -9,8 +9,8 @@ import (
 )
 
 type GeoJSONPolygon struct {
-    Type        string        `json:"type"`
-    Coordinates [][][]float64 `json:"coordinates"`
+    Type        string          `json:"type"`
+    Coordinates [][][]json.Number `json:"coordinates"`
 }
 
 // Scan implements sql.Scanner interface
@@ -24,34 +24,33 @@ func (p *GeoJSONPolygon) Scan(value interface{}) error {
         return fmt.Errorf("expected []byte, got %T", value)
     }
 
-    // First try direct array format
-    var coords [][][]float64
+    var geoJSON struct {
+        Type        string          `json:"type"`
+        Coordinates [][][]json.Number `json:"coordinates"`
+    }
+    
+    if err := json.Unmarshal(b, &geoJSON); err == nil {
+        p.Type = geoJSON.Type
+        p.Coordinates = geoJSON.Coordinates
+        return nil
+    }
+
+    // Try to unmarshal as array if GeoJSON fails
+    var coords [][][]json.Number
     if err := json.Unmarshal(b, &coords); err == nil {
         p.Type = "Polygon"
         p.Coordinates = coords
         return nil
     }
 
-    // Try full GeoJSON format
-    type fullGeoJSON struct {
-        Type        string        `json:"type"`
-        Coordinates [][][]float64 `json:"coordinates"`
-    }
-    var gj fullGeoJSON
-    if err := json.Unmarshal(b, &gj); err != nil {
-        return fmt.Errorf("failed to unmarshal polygon data: %v", err)
-    }
-
-    p.Type = gj.Type
-    p.Coordinates = gj.Coordinates
-    return nil
+    return fmt.Errorf("failed to unmarshal polygon data")
 }
 
 // Value implements driver.Valuer interface
 func (p GeoJSONPolygon) Value() (driver.Value, error) {
     return json.Marshal(struct {
-        Type        string        `json:"type"`
-        Coordinates [][][]float64 `json:"coordinates"`
+        Type        string          `json:"type"`
+        Coordinates [][][]json.Number `json:"coordinates"`
     }{
         Type:        "Polygon",
         Coordinates: p.Coordinates,
