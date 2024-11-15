@@ -4,6 +4,7 @@ package repository
 import (
     "database/sql"
     "fmt"
+    "log"
 
     "github.com/SangBejoo/parking-space-monitor/internal/models"
 )
@@ -74,19 +75,27 @@ func (tr *TaxiRepository) UpdateTaxi(taxiID string, location models.TaxiLocation
 }
 
 // DeleteTaxi deletes a taxi location by its ID.
+// DeleteTaxi in taxi_repository.go
 func (tr *TaxiRepository) DeleteTaxi(taxiID string) error {
+    log.Printf("Attempting to delete taxi with ID: %s", taxiID)
+    
     res, err := tr.DB.Exec("DELETE FROM taxi_location WHERE taxi_id = $1", taxiID)
     if err != nil {
-        return err
+        log.Printf("Database error when deleting taxi %s: %v", taxiID, err)
+        return fmt.Errorf("database error: %v", err)
     }
 
     rowsAffected, err := res.RowsAffected()
     if err != nil {
-        return err
+        log.Printf("Error checking rows affected for taxi %s: %v", taxiID, err)
+        return fmt.Errorf("error checking deletion result: %v", err)
     }
+    
     if rowsAffected == 0 {
+        log.Printf("No taxi found with ID: %s", taxiID)
         return fmt.Errorf("taxi not found")
     }
 
+    log.Printf("Successfully deleted taxi %s, rows affected: %d", taxiID, rowsAffected)
     return nil
 }

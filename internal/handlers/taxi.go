@@ -4,6 +4,7 @@ package handlers
 import (
     "encoding/json"
     "fmt"
+    "log"
     "net/http"
 
     "github.com/gorilla/mux"
@@ -91,7 +92,10 @@ func (th *TaxiHandler) DeleteTaxiLocation(w http.ResponseWriter, r *http.Request
     vars := mux.Vars(r)
     taxiID := vars["id"]
 
+    log.Printf("Received DELETE request for Taxi ID: %s", taxiID)
+
     if err := th.Repo.DeleteTaxi(taxiID); err != nil {
+        log.Printf("Error deleting Taxi ID %s: %v", taxiID, err)
         if err.Error() == "taxi not found" {
             http.Error(w, "Taxi not found", http.StatusNotFound)
             return
@@ -100,5 +104,7 @@ func (th *TaxiHandler) DeleteTaxiLocation(w http.ResponseWriter, r *http.Request
         return
     }
 
+    log.Printf("Successfully deleted Taxi ID: %s", taxiID)
+    w.WriteHeader(http.StatusOK)
     fmt.Fprintf(w, "Taxi location deleted.")
 }

@@ -1,8 +1,10 @@
 // internal/repository/mapping_repository.go
 package repository
 
-import "database/sql"
-
+import (
+    "database/sql"
+    "fmt"
+)
 // MappingRepository handles operations related to mappings and counters.
 type MappingRepository struct {
     DB *sql.DB
@@ -31,4 +33,40 @@ func (mr *MappingRepository) InsertCounter(taxiID string, placeID int) error {
 func (mr *MappingRepository) UpdateCounter(taxiID string, placeID int) error {
     _, err := mr.DB.Exec("UPDATE counters SET counter = counter + 1, last_counted = CURRENT_TIMESTAMP WHERE taxi_id = $1 AND place_id = $2", taxiID, placeID)
     return err
+}
+
+// internal/repository/mapping_repository.go
+
+// GetAllMappings retrieves all records from mapping table
+func (mr *MappingRepository) GetAllMappings() ([]map[string]interface{}, error) {
+    query := `
+        SELECT m.taxi_id, m.place_id, p.place_name
+        FROM mapping m
+        JOIN places p ON m.place_id = p.place_id
+    `
+    
+    rows, err := mr.DB.Query(query)
+    if err != nil {
+        return nil, fmt.Errorf("failed to query mappings: %v", err)
+    }
+    defer rows.Close()
+
+    var mappings []map[string]interface{}
+    for rows.Next() {
+        var taxiID string
+        var placeID int
+        var placeName string
+        
+        if err := rows.Scan(&taxiID, &placeID, &placeName); err != nil {
+            return nil, fmt.Errorf("failed to scan mapping: %v", err)
+        }
+        
+        mappings = append(mappings, map[string]interface{}{
+            "taxi_id":    taxiID,
+            "place_id":   placeID,
+            "place_name": placeName,
+        })
+    }
+
+    return mappings, nil
 }
