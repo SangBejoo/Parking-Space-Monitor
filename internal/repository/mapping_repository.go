@@ -1,11 +1,15 @@
 // internal/repository/mapping_repository.go
 package repository
 
+<<<<<<< HEAD
 import (
 	"database/sql"
 	"fmt"
 	"log"
 )
+=======
+import "database/sql"
+>>>>>>> parent of ec2908f (update)
 
 // MappingRepository handles operations related to mappings and counters.
 type MappingRepository struct {
@@ -33,6 +37,7 @@ func (mr *MappingRepository) InsertCounter(taxiID string, placeID int) error {
 
 // UpdateCounter increments the counter.
 func (mr *MappingRepository) UpdateCounter(taxiID string, placeID int) error {
+<<<<<<< HEAD
 	_, err := mr.DB.Exec("UPDATE counters SET counter = counter + 1, last_counted = CURRENT_TIMESTAMP WHERE taxi_id = $1 AND place_id = $2", taxiID, placeID)
 	return err
 }
@@ -122,3 +127,8 @@ func (repo *MappingRepository) ResetTaxiDuration(taxiID string) error {
 	return nil
 }
 
+=======
+    _, err := mr.DB.Exec("UPDATE counters SET counter = counter + 1, last_counted = CURRENT_TIMESTAMP WHERE taxi_id = $1 AND place_id = $2", taxiID, placeID)
+    return err
+}
+>>>>>>> parent of ec2908f (update)

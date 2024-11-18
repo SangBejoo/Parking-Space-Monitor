@@ -2,9 +2,14 @@
 package scheduler
 
 import (
+<<<<<<< HEAD
 	"database/sql"
 	"log"
 	"sync"
+=======
+    "database/sql"
+    "sync"
+>>>>>>> parent of ec2908f (update)
 
 	"github.com/SangBejoo/parking-space-monitor/internal/repository"
 )
@@ -15,6 +20,7 @@ type Scheduler struct {
 	Mutex sync.Mutex
 }
 
+<<<<<<< HEAD
 // Point represents a geographic coordinate.
 type Point struct {
 	X float64 // longitude
@@ -39,6 +45,8 @@ func isPointInPolygon(longitude, latitude float64, polygon []Point) bool {
 	return intersects
 }
 
+=======
+>>>>>>> parent of ec2908f (update)
 // Repository aggregates all repository dependencies.
 type Repository struct {
 	DB          *sql.DB
@@ -56,6 +64,7 @@ func NewScheduler(repo *Repository) *Scheduler {
 
 // MapTaxiLocations assigns taxis to places based on their current locations.
 func (s *Scheduler) MapTaxiLocations() {
+<<<<<<< HEAD
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 	log.Println("Starting taxi location mapping...")
@@ -138,3 +147,7 @@ func (s *Scheduler) MapTaxiLocations() {
 
 	log.Println("Mapping process completed")
 }
+=======
+    // Implementation goes here
+}
+>>>>>>> parent of ec2908f (update)
