@@ -93,10 +93,16 @@ func (pr *PlaceRepository) GetAllPlaces() ([]models.Place, error) {
 			// Try to convert array format to GeoJSON
 			var coordinates [][][]json.Number
 			if err := json.Unmarshal(polygonBytes, &coordinates); err == nil {
-				place.Polygon = models.GeoJSONPolygon{
+				geoJSONPolygon := models.GeoJSONPolygon{
 					Type:        "Polygon",
 					Coordinates: coordinates,
 				}
+				polygonBytes, err := json.Marshal(geoJSONPolygon)
+				if err != nil {
+					log.Printf("Polygon marshal error: %v", err)
+					return nil, fmt.Errorf("polygon marshal error: %v", err)
+				}
+				place.Polygon = polygonBytes
 			} else {
 				log.Printf("Polygon unmarshal error: %v, data: %s", err, string(polygonBytes))
 				return nil, fmt.Errorf("polygon unmarshal error: %v", err)

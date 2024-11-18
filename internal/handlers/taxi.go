@@ -2,16 +2,9 @@
 package handlers
 
 import (
-<<<<<<< HEAD
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
-=======
     "encoding/json"
     "fmt"
     "net/http"
->>>>>>> parent of ec2908f (update)
 
 	"database/sql"
 
@@ -122,24 +115,6 @@ func (th *TaxiHandler) DeleteTaxiLocation(w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	taxiID := vars["id"]
 
-<<<<<<< HEAD
-	log.Printf("Received DELETE request for Taxi ID: %s", taxiID)
-
-	if err := th.Repo.DeleteTaxi(taxiID); err != nil {
-		log.Printf("Error deleting Taxi ID %s: %v", taxiID, err)
-		if err.Error() == "taxi not found" {
-			http.Error(w, "Taxi not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "Failed to delete taxi location", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("Successfully deleted Taxi ID: %s", taxiID)
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Taxi location deleted.")
-}
-=======
     if err := th.Repo.DeleteTaxi(taxiID); err != nil {
         if err.Error() == "taxi not found" {
             http.Error(w, "Taxi not found", http.StatusNotFound)
@@ -151,4 +126,3 @@ func (th *TaxiHandler) DeleteTaxiLocation(w http.ResponseWriter, r *http.Request
 
     fmt.Fprintf(w, "Taxi location deleted.")
 }
->>>>>>> parent of ec2908f (update)
