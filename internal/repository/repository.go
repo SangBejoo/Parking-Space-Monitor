@@ -1,20 +1,29 @@
+
 package repository
 
+
+
 import (
-	"database/sql"
-	"/internal/repository"
+
+    "database/sql"
+
 )
+
+
 
 // Repository struct to hold all repositories
 
 type Repository struct {
-	DB *sql.DB
 
-	TaxiRepository *TaxiRepository
+    DB                 *sql.DB
 
-	PlaceRepository *PlaceRepository
+    TaxiRepository     *TaxiRepository
 
-	MappingRepository *MappingRepository
-	CountersRepository *repository.MappingRepository
-	CountersRepository *MappingRepository
+    PlaceRepository    *PlaceRepository
+
+    MappingRepository  *MappingRepository
+
+    CountersRepository *MappingRepository 
+
+	
 }
