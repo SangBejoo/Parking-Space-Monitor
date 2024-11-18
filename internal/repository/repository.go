@@ -1,29 +1,18 @@
-
 package repository
 
-
-
 import (
-
     "database/sql"
-
 )
 
-
-
-// Repository struct to hold all repositories
+// CountersRepository handles operations related to counters.
+type CountersRepository struct {
+    DB *sql.DB
+}
 
 type Repository struct {
-
-    DB                 *sql.DB
-
-    TaxiRepository     *TaxiRepository
-
-    PlaceRepository    *PlaceRepository
-
-    MappingRepository  *MappingRepository
-
-    CountersRepository *MappingRepository 
-
-	
+    DB                  *sql.DB
+    TaxiRepository      *TaxiRepository
+    PlaceRepository     *PlaceRepository
+    MappingRepository   *MappingRepository
+    CountersRepository  *CountersRepository 
 }

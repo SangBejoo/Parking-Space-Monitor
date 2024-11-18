@@ -1,4 +1,5 @@
 // cmd/your-app/main.go
+
 package main
 
 import (
@@ -22,13 +23,16 @@ func main() {
     taxiRepo := &repository.TaxiRepository{DB: db}
     placeRepo := &repository.PlaceRepository{DB: db}
     mappingRepo := &repository.MappingRepository{DB: db}
+    // Initialize CountersRepository if needed
+    // countersRepo := &repository.CountersRepository{DB: db} 
 
-    // Initialize scheduler repository
-    repo := &scheduler.Repository{
-        DB:          db,
-        TaxiRepo:    taxiRepo,
-        PlaceRepo:   placeRepo,
-        MappingRepo: mappingRepo,
+    // Initialize repository struct with all repositories
+    repo := &repository.Repository{
+        DB:                db,
+        TaxiRepository:    taxiRepo,
+        PlaceRepository:   placeRepo,
+        MappingRepository: mappingRepo,
+        // CountersRepository: countersRepo, // Add CountersRepository if needed
     }
 
     // Initialize scheduler
@@ -37,17 +41,17 @@ func main() {
     // Initialize handlers
     taxiHandler := &handlers.TaxiHandler{Repo: taxiRepo}
     placeHandler := &handlers.PlaceHandler{Repo: placeRepo}
-    mappingHandler := &handlers.MappingHandler{Scheduler: sched}
+    mappingHandler := &handlers.MappingHandler{Repo: mappingRepo, Scheduler: sched}
 
     // Initialize router
     router := mux.NewRouter()
 
-    // Register CRUD routes for Taxi Locations
-    router.HandleFunc("/taxi", taxiHandler.CreateTaxiLocation).Methods("POST")
-    router.HandleFunc("/taxi", taxiHandler.GetAllTaxiLocations).Methods("GET")
-    router.HandleFunc("/taxi/{id}", taxiHandler.GetTaxiLocation).Methods("GET")
-    router.HandleFunc("/taxi/{id}", taxiHandler.UpdateTaxiLocation).Methods("PUT")
-    router.HandleFunc("/taxi/{id}", taxiHandler.DeleteTaxiLocation).Methods("DELETE")
+    // Register CRUD routes for Taxis
+    router.HandleFunc("/taxi", taxiHandler.CreateTaxi).Methods("POST")
+    router.HandleFunc("/taxi", taxiHandler.GetAllTaxis).Methods("GET")
+    router.HandleFunc("/taxi/{id}", taxiHandler.GetTaxi).Methods("GET")
+    router.HandleFunc("/taxi/{id}", taxiHandler.UpdateTaxi).Methods("PUT")
+    router.HandleFunc("/taxi/{id}", taxiHandler.DeleteTaxi).Methods("DELETE")
 
     // Register CRUD routes for Places
     router.HandleFunc("/place", placeHandler.CreatePlace).Methods("POST")
@@ -56,11 +60,15 @@ func main() {
     router.HandleFunc("/place/{id}", placeHandler.UpdatePlace).Methods("PUT")
     router.HandleFunc("/place/{id}", placeHandler.DeletePlace).Methods("DELETE")
 
-    // Register routes for Mapping
-	router.HandleFunc("/mapping/trigger", mappingHandler.TriggerMapping).Methods("POST")
-	router.HandleFunc("/mapping", mappingHandler.GetMapping).Methods("GET")
+    // Register CRUD routes for Mappings
+    router.HandleFunc("/mapping", mappingHandler.CreateMapping).Methods("POST")
+    router.HandleFunc("/mapping", mappingHandler.GetAllMappings).Methods("GET")
     router.HandleFunc("/mapping/{id}", mappingHandler.GetMapping).Methods("GET")
+    router.HandleFunc("/mapping/{id}", mappingHandler.UpdateMapping).Methods("PUT")
+    router.HandleFunc("/mapping/{id}", mappingHandler.DeleteMapping).Methods("DELETE")
 
+    // Register routes for Scheduler
+    router.HandleFunc("/mapping/trigger", mappingHandler.TriggerMapping).Methods("POST")
 
     // Start the server
     log.Println("Starting server on :8080")

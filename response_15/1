@@ -1,0 +1,6 @@
+CREATE TABLE taxi_location (
+    taxi_id VARCHAR(255) PRIMARY KEY,
+    longitude NUMERIC(10, 6) NOT NULL,
+    latitude NUMERIC(10, 6) NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

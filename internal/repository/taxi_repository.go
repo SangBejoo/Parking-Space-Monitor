@@ -1,25 +1,51 @@
-// internal/repository/taxi_repository.go
 package repository
+
 
 import (
     "database/sql"
     "fmt"
     "log"
 
+
     "github.com/SangBejoo/parking-space-monitor/internal/models"
 )
 
-// TaxiRepository handles CRUD operations for TaxiLocation.
 type TaxiRepository struct {
     DB *sql.DB
 }
 
-// CreateTaxi inserts a new taxi location into the database.
+// CreateTaxi creates or updates a taxi's location in the database
+
 func (tr *TaxiRepository) CreateTaxi(location models.TaxiLocation) error {
-    _, err := tr.DB.Exec(`INSERT INTO taxi_location (taxi_id, longitude, latitude, updated_at) 
-        VALUES ($1, $2, $3, CURRENT_TIMESTAMP) 
-        ON CONFLICT (taxi_id) DO NOTHING`,
-        location.TaxiID, location.Longitude, location.Latitude)
+    query := `
+        INSERT INTO taxi_location (taxi_id, longitude, latitude, updated_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (taxi_id) DO UPDATE
+        SET longitude = EXCLUDED.longitude,
+            latitude = EXCLUDED.latitude,
+            updated_at = EXCLUDED.updated_at;
+    `
+    _, err := tr.DB.Exec(query, location.TaxiID, location.Longitude, location.Latitude)
+    if err != nil {
+        return fmt.Errorf("failed to create taxi location: %w", err)
+    }
+    return nil
+}
+
+// UpdateTaxiLocation updates a taxi's location in the database.
+func (tr *TaxiRepository) UpdateTaxiLocation(taxiID string, longitude, latitude float64) error {
+    query := `
+        INSERT INTO taxi_location (taxi_id, longitude, latitude, updated_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (taxi_id) DO UPDATE
+        SET longitude = EXCLUDED.longitude,
+            latitude = EXCLUDED.latitude,
+            updated_at = EXCLUDED.updated_at;
+    `
+    _, err := tr.DB.Exec(query, taxiID, longitude, latitude)
+    if err != nil {
+        log.Printf("Error updating taxi location: %v", err)
+    }
     return err
 }
 

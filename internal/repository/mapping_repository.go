@@ -1,114 +1,127 @@
 // internal/repository/mapping_repository.go
+
 package repository
 
 import (
     "database/sql"
     "fmt"
-    "log"
+   
+    "github.com/SangBejoo/parking-space-monitor/internal/models"
 )
-// MappingRepository handles operations related to mappings and counters.
+
+// MappingRepository handles operations related to mappings.
 type MappingRepository struct {
     DB *sql.DB
 }
 
 // InsertMapping inserts a new mapping into the mapping table.
-func (mr *MappingRepository) InsertMapping(taxiID string, placeID int) error {
-    _, err := mr.DB.Exec("INSERT INTO mapping (taxi_id, place_id) VALUES ($1, $2)", taxiID, placeID)
-    return err
-}
-
-// GetCounter retrieves the current counter for a taxi and place.
-func (mr *MappingRepository) GetCounter(taxiID string, placeID int) (int, error) {
-    var count int
-    err := mr.DB.QueryRow("SELECT counter FROM counters WHERE taxi_id = $1 AND place_id = $2", taxiID, placeID).Scan(&count)
-    return count, err
-}
-
-// InsertCounter inserts a new counter.
-func (mr *MappingRepository) InsertCounter(taxiID string, placeID int) error {
-    _, err := mr.DB.Exec("INSERT INTO counters (taxi_id, place_id, counter, last_counted) VALUES ($1, $2, 1, CURRENT_TIMESTAMP)", taxiID, placeID)
-    return err
-}
-
-// UpdateCounter increments the counter.
-func (mr *MappingRepository) UpdateCounter(taxiID string, placeID int) error {
-    _, err := mr.DB.Exec("UPDATE counters SET counter = counter + 1, last_counted = CURRENT_TIMESTAMP WHERE taxi_id = $1 AND place_id = $2", taxiID, placeID)
-    return err
-}
-
-// internal/repository/mapping_repository.go
-
-// GetAllMappings retrieves all records from mapping table
-func (mr *MappingRepository) GetAllMappings() ([]map[string]interface{}, error) {
+func (mr *MappingRepository) InsertMapping(mapping models.Mapping) error {
     query := `
-        SELECT m.taxi_id, m.place_id, p.place_name
+        INSERT INTO mapping (place_id, taxi_id)
+        VALUES ($1, $2)
+    `
+    _, err := mr.DB.Exec(query, mapping.PlaceID, mapping.TaxiID)
+    if err != nil {
+        return fmt.Errorf("failed to insert mapping: %w", err)
+    }
+    return nil
+}
+
+// GetAllMappings retrieves all mappings with place names and taxi numbers.
+func (mr *MappingRepository) GetAllMappings() ([]models.Mapping, error) {
+    query := `
+        SELECT m.id, p.place_name, t.nomor_taxi
         FROM mapping m
         JOIN places p ON m.place_id = p.place_id
+        JOIN taxi t ON m.taxi_id = t.id
     `
-    
+
     rows, err := mr.DB.Query(query)
     if err != nil {
         return nil, fmt.Errorf("failed to query mappings: %v", err)
     }
     defer rows.Close()
 
-    var mappings []map[string]interface{}
+    var mappings []models.Mapping
     for rows.Next() {
-        var taxiID string
-        var placeID int
-        var placeName string
-        
-        if err := rows.Scan(&taxiID, &placeID, &placeName); err != nil {
+        var mapping models.Mapping
+        if err := rows.Scan(&mapping.ID, &mapping.PlaceName, &mapping.TaxiID); err != nil {
             return nil, fmt.Errorf("failed to scan mapping: %v", err)
         }
-        
-        mappings = append(mappings, map[string]interface{}{
-            "taxi_id":    taxiID,
-            "place_id":   placeID,
-            "place_name": placeName,
-        })
+        mappings = append(mappings, mapping)
     }
 
     return mappings, nil
 }
 
-// UpdateTaxiDuration updates the duration of a taxi in a specific place.
-
-func (r *MappingRepository) UpdateTaxiDuration(taxiID, placeID string) error {
-
-    query := "UPDATE taxi_durations SET duration = duration + 1 WHERE taxi_id = ? AND place_id = ?"
-
-    _, err := r.DB.Exec(query, taxiID, placeID)
-
+// GetMappingByID retrieves a mapping by its ID.
+func (mr *MappingRepository) GetMappingByID(mappingID int) (*models.Mapping, error) {
+    var mapping models.Mapping
+    query := `
+        SELECT m.id, p.place_name, t.nomor_taxi
+        FROM mapping m
+        JOIN places p ON m.place_id = p.place_id
+        JOIN taxi t ON m.taxi_id = t.id
+        WHERE m.id = $1
+    `
+    err := mr.DB.QueryRow(query, mappingID).Scan(&mapping.ID, &mapping.PlaceName, &mapping.TaxiID)
     if err != nil {
-
-        log.Printf("Error updating taxi duration: %v", err)
-
-        return err
-
+        return nil, err
     }
-
-    return nil
-
+    return &mapping, nil
 }
 
-
-// ResetTaxiDuration resets the duration of a taxi in a place.
-
-func (repo *MappingRepository) ResetTaxiDuration(taxiID string) error {
-
-    query := "UPDATE taxi_mapping SET duration = 0 WHERE taxi_id = ?"
-
-    _, err := repo.DB.Exec(query, taxiID)
-
+// UpdateMapping updates an existing mapping.
+func (mr *MappingRepository) UpdateMapping(mapping models.Mapping) error {
+    query := `
+        UPDATE mapping
+        SET place_id = $1, taxi_id = $2
+        WHERE id = $3
+    `
+    res, err := mr.DB.Exec(query, mapping.PlaceID, mapping.TaxiID, mapping.ID)
     if err != nil {
-
-        log.Printf("Error resetting taxi duration for taxi %s: %v", taxiID, err)
-
         return err
+    }
 
+    rowsAffected, err := res.RowsAffected()
+    if err != nil {
+        return err
+    }
+    if rowsAffected == 0 {
+        return fmt.Errorf("mapping not found")
     }
 
     return nil
+}
 
+// DeleteMapping deletes a mapping by its ID.
+func (mr *MappingRepository) DeleteMapping(mappingID int) error {
+    res, err := mr.DB.Exec("DELETE FROM mapping WHERE id = $1", mappingID)
+    if err != nil {
+        return err
+    }
+
+    rowsAffected, err := res.RowsAffected()
+    if err != nil {
+        return err
+    }
+    if rowsAffected == 0 {
+        return fmt.Errorf("mapping not found")
+    }
+
+    return nil
+}
+
+// UpdateTaxiDuration updates the duration a taxi has spent in a place.
+func (mr *MappingRepository) UpdateTaxiDuration(taxiID string, placeID int) error {
+    query := `UPDATE taxi_durations SET place_id = $1, updated_at = NOW() WHERE taxi_id = $2`
+    _, err := mr.DB.Exec(query, placeID, taxiID)
+    return err
+}
+
+// ResetTaxiDuration resets the duration a taxi has spent in any place.
+func (mr *MappingRepository) ResetTaxiDuration(taxiID string) error {
+    query := `UPDATE taxi_durations SET place_id = NULL, updated_at = NOW() WHERE taxi_id = $1`
+    _, err := mr.DB.Exec(query, taxiID)
+    return err
 }

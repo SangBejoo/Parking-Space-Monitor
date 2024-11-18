@@ -14,37 +14,36 @@ import (
 	"github.com/gorilla/mux"
 )
 
-
 // TaxiHandler handles HTTP requests for Taxi operations.
 type TaxiHandler struct {
 	Repo *repository.TaxiRepository
 }
 
-// CreateTaxiLocation handles the creation of a new taxi location.
-func (th *TaxiHandler) CreateTaxiLocation(w http.ResponseWriter, r *http.Request) {
-    var location models.TaxiLocation
-    if err := json.NewDecoder(r.Body).Decode(&location); err != nil {
-        http.Error(w, "Invalid request payload", http.StatusBadRequest)
-        return
-    }
+// CreateTaxi handles the creation of a new taxi.
+func (th *TaxiHandler) CreateTaxi(w http.ResponseWriter, r *http.Request) {
+	var location models.TaxiLocation
+	if err := json.NewDecoder(r.Body).Decode(&location); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
 
-    if err := th.Repo.CreateTaxi(location); err != nil {
-        http.Error(w, "Failed to create taxi location", http.StatusInternalServerError)
-        return
-    }
+	if err := th.Repo.CreateTaxi(location); err != nil {
+		http.Error(w, "Failed to create taxi location", http.StatusInternalServerError)
+		return
+	}
 
-    response := map[string]interface{}{
+	response := map[string]interface{}{
 		"taxi_id":   location.TaxiID,
-        "longitude": location.Longitude,
-        "latitude":  location.Latitude,
-    }
+		"longitude": location.Longitude,
+		"latitude":  location.Latitude,
+	}
 
-    w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(response)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
 }
 
-// GetAllTaxiLocations retrieves all taxi locations.
-func (th *TaxiHandler) GetAllTaxiLocations(w http.ResponseWriter, r *http.Request) {
+// GetAllTaxis retrieves all taxis.
+func (th *TaxiHandler) GetAllTaxis(w http.ResponseWriter, r *http.Request) {
 	taxis, err := th.Repo.GetAllTaxis()
 	if err != nil {
 		http.Error(w, "Failed to query taxi locations", http.StatusInternalServerError)
@@ -55,8 +54,8 @@ func (th *TaxiHandler) GetAllTaxiLocations(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(taxis)
 }
 
-// GetTaxiLocation retrieves a single taxi location by ID.
-func (th *TaxiHandler) GetTaxiLocation(w http.ResponseWriter, r *http.Request) {
+// GetTaxi retrieves a single taxi by ID.
+func (th *TaxiHandler) GetTaxi(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taxiID := vars["id"]
 
@@ -73,8 +72,8 @@ func (th *TaxiHandler) GetTaxiLocation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(taxi)
 }
 
-// UpdateTaxiLocation handles updating an existing taxi location.
-func (th *TaxiHandler) UpdateTaxiLocation(w http.ResponseWriter, r *http.Request) {
+// UpdateTaxi handles updating an existing taxi.
+func (th *TaxiHandler) UpdateTaxi(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taxiID := vars["id"]
 
@@ -96,8 +95,8 @@ func (th *TaxiHandler) UpdateTaxiLocation(w http.ResponseWriter, r *http.Request
 	fmt.Fprintf(w, "Taxi location updated.")
 }
 
-// DeleteTaxiLocation handles deleting a taxi location by ID.
-func (th *TaxiHandler) DeleteTaxiLocation(w http.ResponseWriter, r *http.Request) {
+// DeleteTaxi handles deleting a taxi by ID.
+func (th *TaxiHandler) DeleteTaxi(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taxiID := vars["id"]
 

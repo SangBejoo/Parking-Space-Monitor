@@ -1,21 +1,31 @@
-// internal/scheduler/scheduler.go
 package scheduler
 
 import (
-    "database/sql"
     "log"
     "sync"
-    "strconv"
 
     "github.com/SangBejoo/parking-space-monitor/internal/repository"
 )
 
 // Scheduler handles scheduled tasks like mapping taxis to places.
 type Scheduler struct {
-    Repo  *Repository
+    Repo  *repository.Repository
     Mutex sync.Mutex
 }
 
+// ProcessTaxi processes a taxi's location and updates it in the database.
+func (s *Scheduler) ProcessTaxi(taxiID string, longitude, latitude float64) {
+    s.Mutex.Lock()
+    defer s.Mutex.Unlock()
+
+    log.Printf("Processing taxi %s at coordinates (%.6f, %.6f)", taxiID, longitude, latitude)
+
+    // Update the taxi location in the database
+    err := s.Repo.TaxiRepository.UpdateTaxiLocation(taxiID, longitude, latitude)
+    if err != nil {
+        log.Printf("Error updating taxi location: %v", err)
+    }
+}
 // Point represents a geographic coordinate.
 type Point struct {
     X float64 // longitude
@@ -40,16 +50,8 @@ func isPointInPolygon(longitude, latitude float64, polygon []Point) bool {
     return intersects
 }
 
-// Repository aggregates all repository dependencies.
-type Repository struct {
-    DB          *sql.DB
-    TaxiRepo    *repository.TaxiRepository
-    PlaceRepo   *repository.PlaceRepository
-    MappingRepo *repository.MappingRepository
-}
-
 // NewScheduler creates a new Scheduler instance.
-func NewScheduler(repo *Repository) *Scheduler {
+func NewScheduler(repo *repository.Repository) *Scheduler {
     return &Scheduler{
         Repo: repo,
     }
@@ -61,20 +63,20 @@ func (s *Scheduler) MapTaxiLocations() {
     defer s.Mutex.Unlock()
     log.Println("Starting taxi location mapping...")
 
-    taxis, err := s.Repo.TaxiRepo.GetAllTaxis()
+    taxis, err := s.Repo.TaxiRepository.GetAllTaxis()
     if err != nil {
         log.Printf("Error getting taxis: %v", err)
         return
     }
 
-    places, err := s.Repo.PlaceRepo.GetAllPlaces()
+    places, err := s.Repo.PlaceRepository.GetAllPlaces()
     if err != nil {
         log.Printf("Error getting places: %v", err)
         return
     }
 
     for _, taxi := range taxis {
-        log.Printf("Processing taxi %s at coordinates (%f, %f)",
+        log.Printf("Processing taxi %s at coordinates (%.2f, %.2f)",
             taxi.TaxiID, taxi.Longitude, taxi.Latitude)
 
         matched := false
@@ -87,10 +89,8 @@ func (s *Scheduler) MapTaxiLocations() {
             if len(place.Polygon.Coordinates) > 0 {
                 for _, coord := range place.Polygon.Coordinates[0] {
                     if len(coord) >= 2 {
-                        lonStr := coord[0]
-                        latStr := coord[1]
-                        lon, err1 := lonStr.Float64()
-                        lat, err2 := latStr.Float64()
+                        lon, err1 := coord[0].Float64()
+                        lat, err2 := coord[1].Float64()
                         if err1 != nil || err2 != nil {
                             log.Printf("Error converting coordinate to float64 for place %s", place.PlaceName)
                             continue
@@ -111,8 +111,8 @@ func (s *Scheduler) MapTaxiLocations() {
                 matched = true
                 log.Printf("Taxi %s is within %s", taxi.TaxiID, place.PlaceName)
 
-                // Update taxi duration
-                err := s.Repo.MappingRepo.UpdateTaxiDuration(taxi.TaxiID, strconv.Itoa(place.PlaceID))
+                // Update taxi duration with placeID as int
+                err := s.Repo.MappingRepository.UpdateTaxiDuration(taxi.TaxiID, place.PlaceID)
                 if err != nil {
                     log.Printf("Error updating taxi duration: %v", err)
                 }
@@ -124,7 +124,7 @@ func (s *Scheduler) MapTaxiLocations() {
         if !matched {
             log.Printf("Taxi %s does not match any place", taxi.TaxiID)
             // Reset duration if taxi moved out
-            err := s.Repo.MappingRepo.ResetTaxiDuration(taxi.TaxiID)
+            err := s.Repo.MappingRepository.ResetTaxiDuration(taxi.TaxiID)
             if err != nil {
                 log.Printf("Error resetting taxi duration: %v", err)
             }

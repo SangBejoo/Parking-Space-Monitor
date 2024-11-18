@@ -19,5 +19,8 @@ func InitDB(connStr string) *sql.DB {
 		log.Fatal("Failed to ping database:", err)
 	}
 
+	
+	
+
 	return db
 }
