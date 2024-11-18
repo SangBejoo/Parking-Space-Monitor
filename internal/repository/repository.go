@@ -2,7 +2,7 @@ package repository
 
 import (
 	"database/sql"
-	"your_project_path/internal/repository"
+	"/internal/repository"
 )
 
 // Repository struct to hold all repositories
